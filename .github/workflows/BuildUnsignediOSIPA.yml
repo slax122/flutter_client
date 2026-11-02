@@ -1,85 +1,63 @@
 name: Build Unsigned iOS IPA
 
 on:
-  workflow_dispatch:
+workflow_dispatch:
 
 permissions:
-  contents: read
+contents: read
 
 jobs:
-  build_ios:
-    name: Build Fluxer IPA
-    runs-on: macos-26
+build_ios:
+name: Build Fluxer IPA
+runs-on: xcode-27
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Select Xcode 26
-        shell: bash
-        run: |
-          set -e
-          XCODE_PATH="$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' -print -quit)"
-          if [ -z "$XCODE_PATH" ]; then
-            echo "Xcode 26 was not found on this runner."
-            ls -1 /Applications | grep Xcode || true
-            exit 1
-          fi
-          sudo xcode-select --switch "$XCODE_PATH/Contents/Developer"
-          xcodebuild -version
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Enable native assets
-        run: flutter config --enable-native-assets
-
-      - name: Generate Dart files
-        run: dart run build_runner build
-
-      - name: Configure iOS build
-        run: dart tool/configure_build.dart --profile=ios-store
-
-      - name: Install Flutter dependencies
-        run: flutter pub get
-
-      - name: Install CocoaPods dependencies
-        run: |
-          cd ios
-          pod install
-
-      - name: Build unsigned iOS app
-        run: |
-          flutter build ios \
-            --release \
-            --no-codesign \
-            --flavor canary \
-            --dart-define-from-file=tool/dart_defines/canary.json \
-            --dart-define=PUSH_PROVIDER=apns
-
-      - name: Package IPA
-        shell: bash
-        run: |
-          set -e
-          APP_PATH="build/ios/iphoneos/Runner.app"
-          test -d "$APP_PATH"
-
-          mkdir -p build/ios/iphoneos/Payload
-          cp -R "$APP_PATH" build/ios/iphoneos/Payload/
-
-          cd build/ios/iphoneos
-          /usr/bin/zip -qr Fluxer.ipa Payload
-          test -s Fluxer.ipa
-
-      - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Fluxer-Unsigned-IPA
-          path: build/ios/iphoneos/Fluxer.ipa
-          if-no-files-found: error
-          retention-days: 7
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
+    with:
+      submodules: recursive
+  - name: Verify Xcode 27
+    run: xcodebuild -version
+  - name: Set up Flutter
+    uses: subosito/flutter-action@v2
+    with:
+      channel: stable
+      cache: true
+  - name: Enable native assets
+    run: flutter config --enable-native-assets
+  - name: Generate Dart files
+    run: dart run build_runner build
+  - name: Configure iOS build
+    run: dart tool/configure_build.dart --profile=ios-store
+  - name: Install Flutter dependencies
+    run: flutter pub get
+  - name: Install CocoaPods dependencies
+    run: |
+      cd ios
+      pod install
+  - name: Build unsigned iOS app
+    run: |
+      flutter build ios \
+        --release \
+        --no-codesign \
+        --flavor canary \
+        --dart-define-from-file=tool/dart_defines/canary.json \
+        --dart-define=PUSH_PROVIDER=apns
+  - name: Package IPA
+    shell: bash
+    run: |
+      set -e
+      APP_PATH="build/ios/iphoneos/Runner.app"
+      test -d "$APP_PATH"
+      mkdir -p build/ios/iphoneos/Payload
+      cp -R "$APP_PATH" build/ios/iphoneos/Payload/
+      cd build/ios/iphoneos
+      /usr/bin/zip -qr Fluxer.ipa Payload
+      test -s Fluxer.ipa
+  - name: Upload IPA artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: Fluxer-Unsigned-IPA
+      path: build/ios/iphoneos/Fluxer.ipa
+      if-no-files-found: error
+      retention-days: 7
