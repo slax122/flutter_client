@@ -1,41 +1,91 @@
-name: Build Unsigned iOS IPA
+name:build-ipa
 
 on:
-  workflow_dispatch: # Allows you to manually trigger the build whenever you want
+workflow_dispatch:
 
 jobs:
-  build_ios:
-    name: Build Fluxer iOS IPA
-    runs-on: macos-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+build_ios:
+name:BuildFluxeriOSIPA
+runs-on:Xcode-26
 
-      - name: Setup Flutter SDK
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
+steps:
+-name:Checkoutcode
+uses:actions/checkout@v4
+with:
+submodules:recursive
 
-      - name: Install Dependencies
-        run: |
-          flutter pub get
-          cd ios && pod install
+-name:SelectXcode26
+run:|
+XCODE_PATH=$(find/Applications-maxdepth1-name'Xcode_26*.app'|sort-V|tail-n1)
+if[-z"$XCODE_PATH"];then
+echo"Xcode26notfound"
+exit1
+fi
+sudoxcode-select-s"$XCODE_PATH/Contents/Developer"
+xcodebuild-version
 
-      - name: Build Project Assets
-        run: flutter build ios --release --no-codesign
+-name:SetupFlutterSDK
+uses:subosito/flutter-action@v2
+with:
+channel:stable
+cache:true
 
-      - name: Package Into IPA
-        run: |
-          mkdir -p build/ios/iphoneos/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
-          cd build/ios/iphoneos
-          zip -r Fluxer.zip Payload
-          mv Fluxer.zip Fluxer.ipa
+-name:Enablenativeassets
+run:flutterconfig--enable-native-assets
 
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Fluxer-Unsigned-IPA
-          path: build/ios/iphoneos/Fluxer.ipa
+-name:Generateprojectfiles
+run:dartrunbuild_runnerbuild
+
+-name:ConfigureiOSbuild
+run:darttool/configure_build.dart--profile=ios-store
+
+-name:Installdependencies
+run:|
+flutterpubget
+cdios
+podinstall
+
+-name:BuildunsignediOSapp
+run:|
+flutterbuildios\
+--release\
+--no-codesign\
+--flavorcanary\
+--dart-define-from-file=tool/dart_defines/canary.json\
+--dart-define=PUSH_PROVIDER=apns
+
+-name:PackageIPA
+run:|
+mkdir-pbuild/ios/iphoneos/Payload
+cp-Rbuild/ios/iphoneos/Runner.appbuild/ios/iphoneos/Payload/
+cdbuild/ios/iphoneos
+zip-qrFluxer.ipaPayload
+test-fFluxer.ipa
+
+-name:UploadIPAartifact
+uses:actions/upload-artifact@v4
+with:
+name:Fluxer-Unsigned-IPA
+path:build/ios/iphoneos/Fluxer.ipa
+if-no-files-found:error
+retention-days:7
+
+###Whatchanged?
+
+-**Runner:**Uses`macos-26`,whichsupportsXcode26.
+-**Submodules:**Checksouttherepository'ssubmodules.
+-**Buildsetup:**Includestheproject'sdocumentedassetgenerationandiOSconfigurationsteps.
+-**Signing:**Uses`--no-codesign`,soAppledistributioncertificatesaren'trequiredforcompilation.
+-**Output:**Packages`Runner.app`into`Fluxer.ipa`.
+-**NoTestFlightupload:**Theworkflowdoesn'tuploadanythingtoTestFlightortheAppStore.
+
+###HowtodownloadyourIPA
+
+1.CommittheupdatedYAMLfiletoyour`canary`branch.
+2.Open[yourBuildIPAworkflow](https://github.com/slax122/flutter_client/actions/workflows/build-ipa.yml).
+3.Tap**Runworkflow**.
+4.Waitfortheruntofinishsuccessfully.
+5.Openthecompletedrunandscrollto**Artifacts**.
+6.Download`Fluxer-Unsigned-IPA`.
+
+**Onecaveat:**Thisisaproposedworkflow,notaverifiedsuccessfulbuild.Fluxer'scustomconfiguration,Flutterdependencies,oriOSprojectsettingsmayrequireadjustments.AnunsignedIPAalsoisn'tautomaticallyinstallableonaniPhone;installationrequiresacompatiblesigningmethod.
