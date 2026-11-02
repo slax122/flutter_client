@@ -83,13 +83,3 @@ jobs:
           path: build/ios/iphoneos/Fluxer.ipa
           if-no-files-found: error
           retention-days: 7
-
-### Then do this
-
-1. Save and commit the file to your `canary` branch.
-2. Open the **Actions** tab in your repository.
-3. Select **Build Unsigned iOS IPA**.
-4. Tap **Run workflow**.
-5. Once the build succeeds, open the run and download **Fluxer-Unsigned-IPA** under Artifacts.
-
-**Note:** This corrects the YAML structure, but I haven't verified that every build command matches the current repository configuration. If the build fails again, the job logs will identify the next issue. An unsigned IPA may also require signing before it can be installed on your iPhone.
